@@ -1,0 +1,60 @@
+version: "3"
+
+services:
+  web:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "8080:80"
+    environment:
+      DOMAIN: ${APP_DOMAIN}
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+      - .:/var/www
+    links:
+      - php
+    networks:
+      - app
+  php:
+    image: php:7-fpm
+    container_name: php
+    build:
+      context: ./docker/php-fpm
+      dockerfile: ./Dockerfile
+    volumes:
+      - .:/var/www
+    networks:
+      - app
+  db:
+    image: postgres
+    container_name: ${DB_HOST}
+    ports:
+      - "25432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${DB_DATABASE}
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    networks:
+      - app
+  mailcatcher:
+    image: schickling/mailcatcher
+    container_name: ${MAIL_HOST}
+    ports:
+      - "1080:1080"
+    networks:
+      - app
+  redis:
+    image: redis:6.2
+    container_name: redis
+    ports:
+      - "6382:6379"
+    networks:
+      - app
+volumes:
+  db_data:
+    driver: local
+networks:
+  app:
+    driver: bridge

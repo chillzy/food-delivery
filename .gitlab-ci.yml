@@ -1,0 +1,46 @@
+image: registry.gitlab.com/hhrono/project-unemployed/php-fpm:latest
+
+stages:
+  - build
+  - test
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - vendor/
+
+Install Сomposer dependencies:
+  stage: build
+  script:
+    - composer install --no-interaction --ansi --no-suggest --prefer-dist
+
+Execute php-cs-fixer:
+  stage: test
+  script:
+    - ./vendor/bin/php-cs-fixer fix --config=.php-cs-fixer.dist.php --allow-risky=yes -v --dry-run --stop-on-violation --using-cache=no
+
+Execute phpunit:
+  stage: test
+  services:
+    - postgres:11-alpine
+    - redis:6.2
+  variables:
+    POSTGRES_DB: &pg-db-name 'postgres'
+    POSTGRES_USER: &pg-username 'root'
+    POSTGRES_PASSWORD: &pg-password 'root'
+    DB_CONNECTION: 'pgsql'
+    DB_HOST: 'postgres'
+    DB_PORT: 5432
+    DB_DATABASE: *pg-db-name
+    DB_USERNAME: *pg-username
+    DB_PASSWORD: *pg-password
+    CACHE_DRIVER: 'redis'
+    REDIS_CLIENT: 'predis'
+    REDIS_HOST: 'redis'
+    REDIS_PORT: '6379'
+  script:
+    - cp .env.example .env
+    - php artisan key:generate
+    - php artisan jwt:secret -f
+    - php artisan migrate
+    - php artisan test
